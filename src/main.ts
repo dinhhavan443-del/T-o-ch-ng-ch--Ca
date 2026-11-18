@@ -17,6 +17,7 @@ let caAlgorithm: any = null;
 let caName = "";
 let lastCertificatePem = "";
 let lastPrivateKeyPem = "";
+let mobileconfigObjectUrl: string | null = null;
 
 let payloads = new Set<ProfilePayload>([
   "dns",
@@ -769,14 +770,48 @@ function buildMobileconfig() {
     `"http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n` +
     `<plist version="1.0"><dict>${dictPlist(profile)}</dict></plist>`;
 
-  download(
-    "PEDINHIOS_CONFIGURATION.mobileconfig",
-    xml,
-    "application/x-apple-aspen-config"
-  );
+  // Keep the generated file available through a real, visible link.
+  // This is more reliable on iPhone/iPad Safari than a synthetic click
+  // on a detached anchor immediately after building a Blob.
+  if (mobileconfigObjectUrl) {
+    URL.revokeObjectURL(mobileconfigObjectUrl);
+    mobileconfigObjectUrl = null;
+  }
+
+  const fileBlob = new Blob([xml], {
+    type: "application/x-apple-aspen-config;charset=utf-8"
+  });
+
+  if (fileBlob.size === 0) {
+    throw new Error("Mobileconfig tạo ra bị rỗng. Vui lòng kiểm tra cấu hình.");
+  }
+
+  mobileconfigObjectUrl = URL.createObjectURL(fileBlob);
+
+  let downloadLink = document.getElementById(
+    "mobileconfigDownloadLink"
+  ) as HTMLAnchorElement | null;
+
+  if (!downloadLink) {
+    downloadLink = document.createElement("a");
+    downloadLink.id = "mobileconfigDownloadLink";
+    downloadLink.className = "mobileconfig-download-link";
+    downloadLink.textContent = "⬇ TẢI PEDINHIOS_CONFIGURATION.mobileconfig";
+    downloadLink.setAttribute("aria-label", "Tải tệp cấu hình Mobileconfig");
+
+    const actions = $("#buildMobile").parentElement;
+    if (!actions) {
+      throw new Error("Không tìm thấy khu vực tải Mobileconfig.");
+    }
+    actions.appendChild(downloadLink);
+  }
+
+  downloadLink.href = mobileconfigObjectUrl;
+  downloadLink.download = "PEDINHIOS_CONFIGURATION.mobileconfig";
+  downloadLink.style.display = "inline-flex";
 
   setStatus(
-    `Đã xuất Mobileconfig với ${items.length} payload. Một số payload yêu cầu máy chủ VPN/DNS hoặc MDM tương thích.`,
+    `Đã tạo Mobileconfig (${fileBlob.size.toLocaleString()} bytes, ${items.length} payload). Nhấn nút TẢI bên dưới để lưu tệp trên iPhone.`,
     true
   );
 }
