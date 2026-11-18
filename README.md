@@ -1,63 +1,37 @@
 # PEDINHIOS CERTIFICATE BUILDER PRO
 
-A local-first browser application for creating and inspecting X.509 certificates and generating Apple `.mobileconfig` profile files.
+Web app local-first for X.509 certificates and Apple `.mobileconfig` profiles.
 
-## Features
+## Updates in this build
 
-- Self-signed Root CA generation.
-- Intermediate CA and server certificate issuance from a Root CA held in the current browser session.
-- RSA 2048/3072/4096 and ECDSA P-256/P-384 keys.
-- SHA-256 / SHA-384 / SHA-512 signature hashes.
-- Validity days and CA path length.
-- X.509 CRT, CER, PEM and PKCS#8 private-key exports.
-- PKCS#10 CSR creation.
-- Certificate inspection and signature verification.
-- Mobileconfig builder with DNS, VPN profile shell, Wi-Fi, Web Clip, restrictions and optional Root CA certificate payload.
-- GitHub Actions deployment to GitHub Pages.
+- DNS payload is **opt-in**: no DNS or VPN profile is selected by default, preventing an accidental resolver/VPN profile from taking over device connectivity.
+- Safe DoH example: `https://cloudflare-dns.com/dns-query` (standard Cloudflare resolver; no content-filtering policy selected by this app). DoT example: hostname `one.one.one.one`, address `1.1.1.1`.
+- DNS DoH validates HTTPS URL; DoT requires hostname and IP address.
+- Mobileconfig download is retained and can be downloaded again.
+- ZIP export contains the generated `.mobileconfig`, optional PEM certificate, optional custom-code text file, and README.
+- Settings include Vietnamese/English interface labels, developer name, Zalo, support phone and email. Contact fields are user-editable and are only included in ZIP when supplied.
+- Custom text supports Plain text, Base64, C++ source and JavaScript source labels. These are exported as text attachments only. iOS configuration profiles do not execute arbitrary C++/JavaScript/Base64.
 
-## Requirements
-
-- Node.js 20+ (workflow uses Node 22).
-- Modern browser with Web Crypto.
-- HTTPS or localhost is required for Web Crypto in most browsers.
-
-## Run locally
+## Install and build
 
 ```bash
 npm install
 npm run dev
-```
-
-Open the local URL printed by Vite.
-
-## Build
-
-```bash
 npm run build
-npm run preview
 ```
 
-## Deploy with GitHub Actions
+Node.js 20+ recommended. Deploy `dist/` with GitHub Pages using the workflow in `.github/workflows/deploy.yml`.
 
-1. Create a GitHub repository and upload this project.
-2. Push the default branch named `main`.
-3. In repository Settings → Pages, set **Build and deployment** source to **GitHub Actions**.
-4. Open Actions and wait for **Build and deploy PEDINHIOS** to finish.
-5. Open the published Pages URL.
+## Important iPhone recovery steps
 
-## Important technical and security notes
+If a DNS profile causes connectivity problems, remove it at **Settings → General → VPN & Device Management**, then set DNS back to Automatic in the relevant Wi-Fi network settings. This project leaves DNS unchecked by default.
 
-- Web Crypto creates key pairs and signs data. `@peculiar/x509` encodes and parses X.509 certificates.
-- The private key is generated in the browser and is never sent to a backend. Exported `.key` files are unencrypted PKCS#8; store them offline and protect them.
-- Root CA creation and signing of child certificates are performed in the same active browser session. Reloading the page loses the in-memory CA signing key. Keep a secure backup before closing the page. This starter does not import an existing CA private key.
-- RSA-3072 and ECDSA P-256 are approximately 128-bit security. There is no such thing as a 128-bit RSA modulus for a modern CA.
-- The profile builder writes an Apple plist XML configuration profile. DNS-over-HTTPS/TLS values must point to a real resolver. VPN fields are a configuration shell and require a compatible real VPN server and authentication details. The generated profile does not create a VPN service.
-- Apple payload availability and exact keys vary by iOS version, supervision and MDM enrollment. Review and test profiles on a non-production device before deployment.
-- A Root CA installed on iOS does not create AIM, change game memory, alter hitboxes, or bypass app protections.
-- P12/PFX export is not included in this initial version. Use a trusted offline PKCS#12 tool if a password-protected bundle is required.
-- The `Restrictions` payload included here is intentionally minimal; managed restrictions commonly require MDM/supervision and should be validated against Apple's current payload reference.
-- For production use, pin and audit dependencies, host dependencies locally, add CSP/security headers, and consider a hardware-backed or encrypted key store.
+An unsigned `.mobileconfig` may show **Not Verified / Chưa xác thực**. That status does not mean the profile is signed or trusted. The builder currently exports an unsigned profile; it does not create an Apple CMS-signed profile. A self-signed Root CA must be installed and then explicitly enabled under **Settings → General → About → Certificate Trust Settings**. Installing a root certificate does not automatically make the profile signed or trusted.
 
-## Dependency
+## Security notes
 
-- [`@peculiar/x509`](https://peculiarventures.github.io/x509/) for X.509 and CSR operations using Web Crypto.
+- Private keys are generated in the browser using Web Crypto and are not uploaded to a server.
+- Root CA key material remains in memory only; reload loses it. Export and store private keys securely.
+- VPN profile fields do not create a VPN server. A real compatible IKEv2/IPSec server, certificate and authentication configuration are required.
+- DNS only resolves hostnames; it does not guarantee lower game ping, change game routing, or bypass anti-cheat systems.
+- Never install profiles from untrusted sources. Review every payload before installing.
